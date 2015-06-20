@@ -35,6 +35,10 @@ public class Lightning {
         editor.commit();
     }
 
+    public static String getSessionKey() {
+        return sessionKey;
+    }
+
     public static void configure(Context c, String setBaseUrl) {
         configure(c, setBaseUrl, false);
     }
@@ -105,7 +109,8 @@ public class Lightning {
 
             if (method.equals("POST") && parameterString.length() > 0) {
                 connection.setRequestProperty("Content-Length", Integer.toString(parameterString.length()));
-                connection.addRequestProperty("Content-Type", "application/" + "POST");
+                connection.addRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                connection.setRequestProperty("charset", "utf-8");
                 connection.getOutputStream().write(parameterString.getBytes("UTF8"));
             }
 
@@ -117,13 +122,15 @@ public class Lightning {
                 inputStream = new GZIPInputStream(inputStream);
             }
 
-            connection.disconnect();
-
             String output = IOUtils.toString(inputStream, "UTF-8");
             inputStream.close();
+
+            connection.disconnect();
+
             return output;
         } catch (Exception e) {
             // Nothing loaded.
+            e.printStackTrace();
             return null;
         }
     }
