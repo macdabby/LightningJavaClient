@@ -5,6 +5,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.zip.GZIPInputStream;
 
 import android.content.Context;
@@ -60,14 +61,19 @@ public class Lightning {
         sessionKey = sharedPref.getString(SESSION_KEY, null);
     }
 
-    public static String hashMapToQueryString(HashMap<String, Object> parameters) {
+    public static String JSONToQueryString(JSONObject parameters) {
         try {
             StringBuilder sb = new StringBuilder();
-            for(HashMap.Entry<String, Object> e : parameters.entrySet()){
+            Iterator<?> keys = parameters.keys();
+            String key;
+            while (keys.hasNext()) {
+                key = (String)keys.next();
                 if(sb.length() > 0){
                     sb.append('&');
                 }
-                sb.append(URLEncoder.encode(e.getKey(), "UTF-8")).append('=').append(URLEncoder.encode((String)e.getValue(), "UTF-8"));
+                sb.append(URLEncoder.encode(key, "UTF-8"))
+                        .append('=')
+                        .append(URLEncoder.encode(parameters.getString(key), "UTF-8"));
             }
             return sb.toString();
         } catch (Exception e) {
@@ -75,10 +81,10 @@ public class Lightning {
         }
     }
 
-    protected static String getContent(String method, String urlString, HashMap<String, Object> parameters) {
+    protected static String getContent(String method, String urlString, JSONObject parameters) {
         try {
             String appender = urlString.contains("?") ? "&" : "?";
-            String parameterString = hashMapToQueryString(parameters);
+            String parameterString = JSONToQueryString(parameters);
             URL fullUrl;
             if (method.equals("POST")) {
                 fullUrl = new URL(baseURL, urlString);
@@ -122,7 +128,7 @@ public class Lightning {
         }
     }
 
-    protected static JSONObject send(String method, String urlString, HashMap<String, Object> parameters) {
+    protected static JSONObject send(String method, String urlString, JSONObject parameters) {
         String content = getContent(method, urlString, parameters);
         try {
             JSONObject jsonObject = new JSONObject(content);
@@ -132,19 +138,19 @@ public class Lightning {
         }
     }
 
-    public static JSONObject GET(String url, HashMap<String, Object> parameters) {
+    public static JSONObject GET(String url, JSONObject parameters) {
         return send("GET", url, parameters);
     }
 
     public static JSONObject GET(String url) {
-        return send("GET", url, new HashMap<String, Object>());
+        return send("GET", url, new JSONObject());
     }
 
-    public static JSONObject POST(String url, HashMap<String, Object> parameters) {
+    public static JSONObject POST(String url, JSONObject parameters) {
         return send("POST", url, parameters);
     }
 
     public static JSONObject POST(String url) {
-        return send("POST", url, new HashMap<String, Object>());
+        return send("POST", url, new JSONObject());
     }
 }

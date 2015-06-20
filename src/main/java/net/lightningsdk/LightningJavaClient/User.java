@@ -1,9 +1,13 @@
 package net.lightningsdk.LightningJavaClient;
 
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.security.spec.ECField;
 import java.util.HashMap;
 
 public class User {
-    protected HashMap<String, Object> data;
+    protected JSONObject data;
 
     public User() {
         this.load();
@@ -36,67 +40,80 @@ public class User {
      * @return
      */
     protected Boolean _logIn  (String email, String password) {
-        HashMap<String, String> parameters = new HashMap<String, String>();
-        parameters.put("action", "login");
-        parameters.put("email", email);
-        parameters.put("password", password);
-
-        // Log in with the client.
-        HashMap response = Lightning.POST("/api/user", parameters);
-        this.data = new HashMap<String, Object>();
-
-        // Check the status.
-        String status = (String)response.get("status");
         Boolean success = false;
-        if (status != null && status.equals("success")) {
-            // Save the settings.
-            success = true;
-            this.data = response;
-            this.setCookieWithResponse(response);
-        }
+        try {
+            JSONObject parameters = new JSONObject();
+            parameters.put("action", "login");
+            parameters.put("email", email);
+            parameters.put("password", password);
+
+            // Log in with the client.
+            JSONObject response = Lightning.POST("/api/user", parameters);
+            this.data = new JSONObject();
+
+            // Check the status.
+            String status = null;
+
+            status = response.getString("status");
+            if (status != null && status.equals("success")) {
+                // Save the settings.
+                success = true;
+                this.data = response;
+                this.setCookieWithResponse(response);
+            }
+        } catch (Exception e) {}
 
         return success;
     }
 
     public static User registerWithEmail(String email, String password) {
         User user = new User();
-        user.registerWithEmail(email, password, new HashMap());
+        user.registerWithEmail(email, password, new JSONObject());
         return user;
     }
 
-    public void registerWithEmail(String email, String password, HashMap<String, Object> parameters) {
-        // Log in with the client.
-        parameters.put("action", "register");
-        parameters.put("email", email);
-        parameters.put("password", password);
-        HashMap<String, Object> response = Lightning.POST("/api/user", parameters);
-        this.data = new HashMap<String, Object>();
-
-        // Check the status.
-        String status = (String)response.get("status");
+    public boolean registerWithEmail(String email, String password, JSONObject parameters) {
         Boolean success = false;
-        if (status != null && status.equals("success")) {
-            // Save the settings.
-            success = true;
-            this.data = response;
-            this.setCookieWithResponse(response);
-        }
+
+        // Log in with the client.
+        try {
+            parameters.put("action", "register");
+            parameters.put("email", email);
+            parameters.put("password", password);
+            JSONObject response = Lightning.POST("/api/user", parameters);
+            this.data = new JSONObject();
+
+            // Check the status.
+            String status = response.getString("status");
+            if (status != null && status.equals("success")) {
+                // Save the settings.
+                this.data = response;
+                this.setCookieWithResponse(response);
+                success = true;
+            }
+        } catch (Exception e) {}
+
+        return success;
     }
 
-    public void setCookieWithResponse(HashMap<String, Object>response) {
+    public void setCookieWithResponse(JSONObject response) {
         if (response != null) {
-            HashMap cookies = (HashMap)response.get("cookies");
-            if (cookies != null) {
-                String sessionKey = (String)cookies.get("session");
-                Lightning.setSessionKey(sessionKey);
-            }
+            try {
+                JSONObject cookies = response.getJSONObject("cookies");
+                if (cookies != null) {
+                    String sessionKey = cookies.getString("session");
+                    Lightning.setSessionKey(sessionKey);
+                }
+            } catch (Exception e) {}
         }
     }
 
     public void logOut() {
-        HashMap<String, String> parameters = new HashMap<String, String>();
-        parameters.put("action", "logout");
-        Lightning.POST("/api/user", parameters);
+        JSONObject parameters = new JSONObject();
+        try {
+            parameters.put("action", "logout");
+            Lightning.POST("/api/user", parameters);
+        } catch (Exception e){}
     }
 
     public Boolean isLoggedIn() {
@@ -104,16 +121,16 @@ public class User {
     }
 
     public void load() {
-        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-        self.data = [defaults objectForKey:@"Lightning.User"];
-        if (!self.data) {
-            self.data = [[NSMutableDictionary alloc] init];
-        }
+//        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+//        self.data = [defaults objectForKey:@"Lightning.User"];
+//        if (!self.data) {
+//            self.data = [[NSMutableDictionary alloc] init];
+//        }
     }
 
     public void save() {
-        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
-        [defaults setObject:self.data forKey:@"Lightning.User"];
-        [defaults synchronize];
+//        NSUserDefaults *defaults = [NSUserDefaults standardUserDefaults];
+//        [defaults setObject:self.data forKey:@"Lightning.User"];
+//        [defaults synchronize];
     }
 }
