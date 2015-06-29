@@ -4,7 +4,6 @@ import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.zip.GZIPInputStream;
 
@@ -12,6 +11,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 
 import org.apache.commons.io.IOUtils;
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 public class Lightning {
@@ -135,29 +135,46 @@ public class Lightning {
         }
     }
 
-    protected static JSONObject send(String method, String urlString, JSONObject parameters) {
+    protected static JSONObject sendAndReturnObject(String method, String urlString, JSONObject parameters) {
         String content = getContent(method, urlString, parameters);
         try {
-            JSONObject jsonObject = new JSONObject(content);
-            return jsonObject;
+            return new JSONObject(content);
         } catch (Exception e) {
             return null;
         }
     }
 
+    protected static JSONArray sendAndReturnArray(String method, String urlString, JSONObject parameters) {
+        String content = getContent(method, urlString, parameters);
+        try {
+            return new JSONArray(content);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    protected static byte[] sendAndReturnImage(String method, String urlString, JSONObject parameters) {
+        // TODO: return a byte array pointer.
+        return null;
+    }
+
     public static JSONObject GET(String url, JSONObject parameters) {
-        return send("GET", url, parameters);
+        return sendAndReturnObject("GET", url, parameters);
     }
 
     public static JSONObject GET(String url) {
-        return send("GET", url, new JSONObject());
+        return sendAndReturnObject("GET", url, new JSONObject());
     }
 
     public static JSONObject POST(String url, JSONObject parameters) {
-        return send("POST", url, parameters);
+        return sendAndReturnObject("POST", url, parameters);
     }
 
     public static JSONObject POST(String url) {
-        return send("POST", url, new JSONObject());
+        return sendAndReturnObject("POST", url, new JSONObject());
+    }
+
+    public static JSONArray GETArray(String url, JSONObject parameters) {
+        return sendAndReturnArray("GET", url, parameters);
     }
 }
