@@ -7,7 +7,9 @@ import java.net.URLEncoder;
 import java.util.Iterator;
 import java.util.zip.GZIPInputStream;
 
-import android.content.Context;
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.DialogInterface;
 import android.content.SharedPreferences;
 
 import org.apache.commons.io.IOUtils;
@@ -18,7 +20,7 @@ public class Lightning {
     static URL baseURL;
     static String sessionKey;
     static Boolean debug;
-    static Context context;
+    static Activity activity;
 
     private static final String PREFERENCES = "net.lightningsdk";
     private static final String SESSION_KEY = "sessionKey";
@@ -29,7 +31,7 @@ public class Lightning {
     public static void setSessionKey(String newSessionKey) {
         sessionKey = newSessionKey;
 
-        SharedPreferences sharedPref = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE);
+        SharedPreferences sharedPref = activity.getSharedPreferences(PREFERENCES, activity.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPref.edit();
         editor.putString(SESSION_KEY, sessionKey);
         editor.commit();
@@ -39,13 +41,13 @@ public class Lightning {
         return sessionKey;
     }
 
-    public static void configure(Context c, String setBaseUrl) {
-        configure(c, setBaseUrl, false);
+    public static void configure(Activity a, String setBaseUrl) {
+        configure(a, setBaseUrl, false);
     }
 
-    public static void configure(Context c, String setBaseUrl, Boolean debug_value) {
-        // Save the context reference.
-        context = c;
+    public static void configure(Activity a, String setBaseUrl, Boolean debug_value) {
+        // Save the activity reference.
+        activity = a;
 
         // Enable SNI for SSL connections:
         System.setProperty("jsse.enableSNIExtension", "true");
@@ -61,8 +63,54 @@ public class Lightning {
         debug = debug_value;
 
         // Load the user's session key.
-        SharedPreferences sharedPref = context.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE);
+        SharedPreferences sharedPref = activity.getSharedPreferences(PREFERENCES, activity.MODE_PRIVATE);
         sessionKey = sharedPref.getString(SESSION_KEY, null);
+    }
+
+    public static void setActivity(Activity a) {
+        activity = a;
+    }
+
+    protected static void handleJSONError(JSONObject response) {
+        try {
+            if (response.has("errors")) {
+                JSONArray errors = response.getJSONArray("errors");
+                if (errors != null && errors.length() > 0) {
+                    // TODO: combine errors.
+                    alertError(errors.getString(0));
+                    return;
+                }
+            }
+        } catch (Exception e) {
+            alertError("There was an error connecting to the server.");
+        }
+    }
+
+    public static void asyncAlert(final String title, final String message) {
+        new Thread() {
+            public void run() {
+                activity.runOnUiThread(new Runnable() {
+
+                    @Override
+                    public void run() {
+                        AlertDialog alertDialog = new AlertDialog.Builder(activity).create();
+                        alertDialog.setTitle(title);
+                        alertDialog.setMessage(message);
+                        alertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "OK",
+                                new DialogInterface.OnClickListener() {
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        dialog.dismiss();
+                                    }
+                                });
+                        alertDialog.show();
+                    }
+                });
+            }
+        }.start();
+    }
+
+    protected static void alertError(String errorMessage) {
+        asyncAlert("Error", errorMessage);
     }
 
     public static String JSONToQueryString(JSONObject parameters) {
@@ -138,17 +186,28 @@ public class Lightning {
     protected static JSONObject sendAndReturnObject(String method, String urlString, JSONObject parameters) {
         String content = getContent(method, urlString, parameters);
         try {
-            return new JSONObject(content);
+            JSONObject response = new JSONObject(content);
+            handleJSONError(response);
+            return response;
         } catch (Exception e) {
-            return null;
+            alertError("There was an error connecting to the server.");
         }
+        return null;
     }
 
     protected static JSONArray sendAndReturnArray(String method, String urlString, JSONObject parameters) {
+        // TODO: If there is an error, it will come back as an object.
         String content = getContent(method, urlString, parameters);
         try {
             return new JSONArray(content);
         } catch (Exception e) {
+            try {
+                // It's possible the error came back as an object.
+                JSONObject response = new JSONObject(content);
+                handleJSONError(response);
+            } catch (Exception e2) {
+                alertError("There was an error connecting to the server.");
+            }
             return null;
         }
     }
