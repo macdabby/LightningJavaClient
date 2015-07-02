@@ -113,23 +113,51 @@ public class Lightning {
         asyncAlert("Error", errorMessage);
     }
 
+    /**
+     * Convert a complex JSON object into a query string.
+     */
     public static String JSONToQueryString(JSONObject parameters) {
         try {
             StringBuilder sb = new StringBuilder();
-            Iterator<?> keys = parameters.keys();
-            String key;
-            while (keys.hasNext()) {
-                key = (String)keys.next();
-                if(sb.length() > 0){
-                    sb.append('&');
-                }
-                sb.append(URLEncoder.encode(key, "UTF-8"))
-                        .append('=')
-                        .append(URLEncoder.encode(parameters.getString(key), "UTF-8"));
-            }
+            SubJSONToQueryString(sb, "", parameters, true);
             return sb.toString();
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    /**
+     * Returns key/value pairs of query string parameters.
+     */
+    protected static void SubJSONToQueryString(StringBuilder sb, String prefix, Object value, boolean top) {
+        try {
+            if (value instanceof JSONObject) {
+                Iterator<?> keys = ((JSONObject)value).keys();
+                String key;
+                while (keys.hasNext()) {
+                    key = (String)keys.next();
+                    SubJSONToQueryString(
+                            sb,
+                            top ? key : "[" + key + "]",
+                            ((JSONObject) value).getString(key),
+                            false
+                    );
+                }
+            }
+            else if (value instanceof JSONArray) {
+                int length = ((JSONArray)value).length();
+                for (int i = 0; i < length; i++) {
+                    SubJSONToQueryString(sb, prefix + "[]", ((JSONArray) value).get(i), false);
+                }
+            }
+            else {
+                if(sb.length() > 0){
+                    sb.append('&');
+                }
+                sb.append(URLEncoder.encode(prefix, "UTF-8") + "=" + URLEncoder.encode(value.toString(), "UTF-8"));
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
         }
     }
 
