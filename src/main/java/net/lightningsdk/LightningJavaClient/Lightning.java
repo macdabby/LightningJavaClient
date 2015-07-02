@@ -161,7 +161,7 @@ public class Lightning {
         }
     }
 
-    protected static String getContent(String method, String urlString, JSONObject parameters) {
+    protected static HttpURLConnection setupConnection(String method, String urlString, JSONObject parameters) {
         try {
             String appender = urlString.contains("?") ? "&" : "?";
             String parameterString = JSONToQueryString(parameters);
@@ -181,7 +181,9 @@ public class Lightning {
 
             // Add the session cookie.
             connection.setRequestProperty("Cookie", "session=" + sessionKey);
-            connection.setRequestProperty("Accept-Encoding", "gzip, deflate");
+            if (!debug) {
+                connection.setRequestProperty("Accept-Encoding", "gzip, deflate");
+            }
 
             if (method.equals("POST") && parameterString.length() > 0) {
                 connection.setRequestProperty("Content-Length", Integer.toString(parameterString.length()));
@@ -189,18 +191,41 @@ public class Lightning {
                 connection.setRequestProperty("charset", "utf-8");
                 connection.getOutputStream().write(parameterString.getBytes("UTF8"));
             }
+            return connection;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        }
+    }
 
-            connection.connect();
+    protected static InputStream getInputStream(HttpURLConnection connection) {
+        try {
             InputStream inputStream = connection.getInputStream();
-
+            connection.connect();
             // If the output was gzipped, change the input stream to the ungzipped version.
             if ("gzip".equals(connection.getContentEncoding())) {
                 inputStream = new GZIPInputStream(inputStream);
             }
+            return inputStream;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    protected static String getContentString(String method, String urlString, JSONObject parameters) {
+        HttpURLConnection connection = setupConnection(method, urlString, parameters);
+        if (connection == null) {
+            return null;
+        }
+        try {
+            InputStream inputStream = getInputStream(connection);
+            if (inputStream == null) {
+                return null;
+            }
 
             String output = IOUtils.toString(inputStream, "UTF-8");
-            inputStream.close();
 
+            inputStream.close();
             connection.disconnect();
 
             return output;
@@ -211,8 +236,37 @@ public class Lightning {
         }
     }
 
+    protected static byte[] getContentBytes(String method, String urlString, JSONObject parameters, String requiredContentTypePrefix) {
+        HttpURLConnection connection = setupConnection(method, urlString, parameters);
+        if (connection == null) {
+            return null;
+        }
+        try {
+            InputStream inputStream = getInputStream(connection);
+            if (inputStream == null) {
+                return null;
+            }
+
+            // Require the content type header.
+            if (requiredContentTypePrefix != null && !connection.getContentType().startsWith(requiredContentTypePrefix)) {
+                return null;
+            }
+
+            byte[] bytes = IOUtils.toByteArray(inputStream);
+
+            inputStream.close();
+            connection.disconnect();
+
+            return bytes;
+        } catch (Exception e) {
+            // Nothing loaded.
+            e.printStackTrace();
+            return null;
+        }
+    }
+
     protected static JSONObject sendAndReturnObject(String method, String urlString, JSONObject parameters) {
-        String content = getContent(method, urlString, parameters);
+        String content = getContentString(method, urlString, parameters);
         try {
             JSONObject response = new JSONObject(content);
             handleJSONError(response);
@@ -225,7 +279,7 @@ public class Lightning {
 
     protected static JSONArray sendAndReturnArray(String method, String urlString, JSONObject parameters) {
         // TODO: If there is an error, it will come back as an object.
-        String content = getContent(method, urlString, parameters);
+        String content = getContentString(method, urlString, parameters);
         try {
             return new JSONArray(content);
         } catch (Exception e) {
@@ -241,8 +295,20 @@ public class Lightning {
     }
 
     protected static byte[] sendAndReturnImage(String method, String urlString, JSONObject parameters) {
-        // TODO: return a byte array pointer.
-        return null;
+        byte[] data = getContentBytes(method, urlString, parameters, "image/");
+        // If this is json, it could be an error.
+        if (data[0] == '{') {
+            try {
+                JSONObject response = new JSONObject(data.toString());
+                if (response != null) {
+                    handleJSONError(response);
+                }
+            } catch (Exception e) {
+                // This could handle under normal circumstances.
+                e.printStackTrace();
+            }
+        }
+        return data;
     }
 
     public static JSONObject GET(String url, JSONObject parameters) {
@@ -263,5 +329,9 @@ public class Lightning {
 
     public static JSONArray GETArray(String url, JSONObject parameters) {
         return sendAndReturnArray("GET", url, parameters);
+    }
+
+    public static byte[] GETImage(String url, JSONObject parameters) {
+        return sendAndReturnImage("GET", url, parameters);
     }
 }
