@@ -297,7 +297,7 @@ public class Lightning {
     protected static byte[] sendAndReturnImage(String method, String urlString, JSONObject parameters) {
         byte[] data = getContentBytes(method, urlString, parameters, "image/");
         // If this is json, it could be an error.
-        if (data[0] == '{') {
+        if (data != null && data[0] == '{') {
             try {
                 JSONObject response = new JSONObject(data.toString());
                 if (response != null) {
