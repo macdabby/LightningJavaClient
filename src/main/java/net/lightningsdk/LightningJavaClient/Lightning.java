@@ -1,12 +1,5 @@
 package net.lightningsdk.LightningJavaClient;
 
-import java.io.InputStream;
-import java.net.HttpURLConnection;
-import java.net.URL;
-import java.net.URLEncoder;
-import java.util.Iterator;
-import java.util.zip.GZIPInputStream;
-
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
@@ -15,6 +8,13 @@ import android.content.SharedPreferences;
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
+
+import java.io.InputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.util.Iterator;
+import java.util.zip.GZIPInputStream;
 
 public class Lightning {
     static URL baseURL;
@@ -87,26 +87,22 @@ public class Lightning {
     }
 
     public static void asyncAlert(final String title, final String message) {
-        new Thread() {
-            public void run() {
-                activity.runOnUiThread(new Runnable() {
+        activity.runOnUiThread(new Runnable() {
 
-                    @Override
-                    public void run() {
-                        AlertDialog alertDialog = new AlertDialog.Builder(activity).create();
-                        alertDialog.setTitle(title);
-                        alertDialog.setMessage(message);
-                        alertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "OK",
-                                new DialogInterface.OnClickListener() {
-                                    public void onClick(DialogInterface dialog, int which) {
-                                        dialog.dismiss();
-                                    }
-                                });
-                        alertDialog.show();
-                    }
-                });
+            @Override
+            public void run() {
+                AlertDialog alertDialog = new AlertDialog.Builder(activity).create();
+                alertDialog.setTitle(title);
+                alertDialog.setMessage(message);
+                alertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "OK",
+                        new DialogInterface.OnClickListener() {
+                            public void onClick(DialogInterface dialog, int which) {
+                                dialog.dismiss();
+                            }
+                        });
+                alertDialog.show();
             }
-        }.start();
+        });
     }
 
     protected static void alertError(String errorMessage) {
@@ -139,7 +135,7 @@ public class Lightning {
                     SubJSONToQueryString(
                             sb,
                             top ? key : "[" + key + "]",
-                            ((JSONObject) value).getString(key),
+                            ((JSONObject) value).get(key),
                             false
                     );
                 }
