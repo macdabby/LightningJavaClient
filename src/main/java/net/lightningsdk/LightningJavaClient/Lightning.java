@@ -11,8 +11,13 @@ import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.Iterator;
@@ -133,13 +138,15 @@ public class Lightning {
      * Convert a complex JSON object into a query string.
      */
     public String JSONToQueryString(JSONObject parameters) {
+        String res = null;
         try {
             StringBuilder sb = new StringBuilder();
             SubJSONToQueryString(sb, "", parameters, true);
-            return sb.toString();
+            res = sb.toString();
         } catch (Exception e) {
-            return null;
+            res = null;
         }
+        return res;
     }
 
     /**
@@ -178,6 +185,7 @@ public class Lightning {
     }
 
     protected HttpURLConnection setupConnection(String method, String urlString, JSONObject parameters) {
+        HttpURLConnection connection = null;
         try {
             String appender = urlString.contains("?") ? "&" : "?";
             String parameterString = JSONToQueryString(parameters);
@@ -189,7 +197,7 @@ public class Lightning {
                 fullUrl = new URL(baseURL, urlString + appender + parameterString);
                 AppLog.d(fullUrl.toURI().toString());
             }
-            HttpURLConnection connection = (HttpURLConnection) fullUrl.openConnection();
+            connection = (HttpURLConnection) fullUrl.openConnection();
 
             connection.setUseCaches(false);
             connection.setAllowUserInteraction(false);
@@ -209,14 +217,15 @@ public class Lightning {
                 connection.setRequestProperty("charset", "utf-8");
                 connection.getOutputStream().write(parameterString.getBytes("UTF8"));
             }
-            return connection;
         } catch (Exception e) {
+            connection = null;
             e.printStackTrace();
-            return null;
         }
+        return connection;
     }
 
     protected InputStream getInputStream(HttpURLConnection connection) {
+        InputStream result = null;
         try {
             InputStream inputStream = connection.getInputStream();
             connection.connect();
@@ -224,14 +233,17 @@ public class Lightning {
             if ("gzip".equals(connection.getContentEncoding())) {
                 inputStream = new GZIPInputStream(inputStream);
             }
-            return inputStream;
+            result = inputStream;
         } catch (Exception e) {
-            return null;
+            e.printStackTrace();
+            result = null;
         }
+        return result;
     }
 
     protected String getContentString(String method, String urlString, JSONObject parameters) {
         HttpURLConnection connection = setupConnection(method, urlString, parameters);
+        String output;
         if (connection == null) {
             return null;
         }
@@ -241,23 +253,24 @@ public class Lightning {
                 return null;
             }
 
-            String output = IOUtils.toString(inputStream, "UTF-8");
+            output = IOUtils.toString(inputStream, "UTF-8");
 
             AppLog.d("output = " + output);
 
             inputStream.close();
             connection.disconnect();
 
-            return output;
         } catch (Exception e) {
             // Nothing loaded.
             e.printStackTrace();
-            return null;
+            output = null;
         }
+        return output;
     }
 
     protected byte[] getContentBytes(String method, String urlString, JSONObject parameters, String requiredContentTypePrefix) {
         HttpURLConnection connection = setupConnection(method, urlString, parameters);
+        byte[] bytes = null;
         if (connection == null) {
             return null;
         }
@@ -272,38 +285,39 @@ public class Lightning {
                 return null;
             }
 
-            byte[] bytes = IOUtils.toByteArray(inputStream);
+            bytes = IOUtils.toByteArray(inputStream);
 
             AppLog.d("output bytes length = " + bytes.length);
 
             inputStream.close();
             connection.disconnect();
-
-            return bytes;
         } catch (Exception e) {
             // Nothing loaded.
             e.printStackTrace();
-            return null;
+            bytes = null;
         }
+        return bytes;
     }
 
     protected JSONObject sendAndReturnObject(String method, String urlString, JSONObject parameters) {
         String content = getContentString(method, urlString, parameters);
+        JSONObject response = null;
         try {
-            JSONObject response = new JSONObject(content);
+            response = new JSONObject(content);
             handleJSONError(response);
-            return response;
         } catch (Exception e) {
             alertError("There was an error connecting to the server.");
+            response = null;
         }
-        return null;
+        return response;
     }
 
     protected JSONArray sendAndReturnArray(String method, String urlString, JSONObject parameters) {
         // TODO: If there is an error, it will come back as an object.
         String content = getContentString(method, urlString, parameters);
+        JSONArray result = null;
         try {
-            return new JSONArray(content);
+            result = new JSONArray(content);
         } catch (Exception e) {
             try {
                 // It's possible the error came back as an object.
@@ -312,8 +326,9 @@ public class Lightning {
             } catch (Exception e2) {
                 alertError("There was an error connecting to the server.");
             }
-            return null;
+            result = null;
         }
+        return result;
     }
 
     protected byte[] sendAndReturnImage(String method, String urlString, JSONObject parameters) {
