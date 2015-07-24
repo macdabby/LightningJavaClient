@@ -4,6 +4,8 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.SharedPreferences;
+import android.util.Log;
+import android.widget.Toast;
 
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
@@ -18,20 +20,35 @@ import java.util.zip.GZIPInputStream;
 
 public class Lightning {
 
+    private static volatile Lightning instance;
+
+    public static Lightning getInstance() {
+        Lightning localInstance = instance;
+        if (localInstance == null) {
+            synchronized (Lightning.class) {
+                localInstance = instance;
+                if (localInstance == null) {
+                    instance = localInstance = new Lightning();
+                }
+            }
+        }
+        return localInstance;
+    }
+
     public static final boolean DEBUG = false;
 
-    static URL baseURL;
-    static String sessionKey;
-    static Boolean debug;
-    static Activity activity;
+    private URL baseURL;
+    private String sessionKey;
+    private Boolean debug;
+    private Activity activity;
 
-    private static final String PREFERENCES = "net.lightningsdk";
-    private static final String SESSION_KEY = "sessionKey";
+    private final String PREFERENCES = "net.lightningsdk";
+    private final String SESSION_KEY = "sessionKey";
 
     /**
      * Save the user's session key.
      */
-    public static void setSessionKey(String newSessionKey) {
+    public void setSessionKey(String newSessionKey) {
         sessionKey = newSessionKey;
 
         SharedPreferences sharedPref = activity.getSharedPreferences(PREFERENCES, activity.MODE_PRIVATE);
@@ -40,15 +57,15 @@ public class Lightning {
         editor.commit();
     }
 
-    public static String getSessionKey() {
+    public String getSessionKey() {
         return sessionKey;
     }
 
-    public static void configure(Activity a, String setBaseUrl) {
+    public void configure(Activity a, String setBaseUrl) {
         configure(a, setBaseUrl, false);
     }
 
-    public static void configure(Activity a, String setBaseUrl, Boolean debug_value) {
+    public void configure(Activity a, String setBaseUrl, Boolean debug_value) {
         // Save the activity reference.
         activity = a;
 
@@ -70,11 +87,11 @@ public class Lightning {
         sessionKey = sharedPref.getString(SESSION_KEY, null);
     }
 
-    public static void setActivity(Activity a) {
+    public void setActivity(Activity a) {
         activity = a;
     }
 
-    protected static void handleJSONError(JSONObject response) {
+    protected void handleJSONError(JSONObject response) {
         try {
             if (response.has("errors")) {
                 JSONArray errors = response.getJSONArray("errors");
@@ -89,7 +106,7 @@ public class Lightning {
         }
     }
 
-    public static void asyncAlert(final String title, final String message) {
+    public void asyncAlert(final String title, final String message) {
         activity.runOnUiThread(new Runnable() {
 
             @Override
@@ -108,14 +125,14 @@ public class Lightning {
         });
     }
 
-    protected static void alertError(String errorMessage) {
+    protected void alertError(String errorMessage) {
         asyncAlert("Error", errorMessage);
     }
 
     /**
      * Convert a complex JSON object into a query string.
      */
-    public static String JSONToQueryString(JSONObject parameters) {
+    public String JSONToQueryString(JSONObject parameters) {
         try {
             StringBuilder sb = new StringBuilder();
             SubJSONToQueryString(sb, "", parameters, true);
@@ -128,7 +145,7 @@ public class Lightning {
     /**
      * Returns key/value pairs of query string parameters.
      */
-    protected static void SubJSONToQueryString(StringBuilder sb, String prefix, Object value, boolean top) {
+    protected void SubJSONToQueryString(StringBuilder sb, String prefix, Object value, boolean top) {
         try {
             if (value instanceof JSONObject) {
                 Iterator<?> keys = ((JSONObject)value).keys();
@@ -160,7 +177,7 @@ public class Lightning {
         }
     }
 
-    protected static HttpURLConnection setupConnection(String method, String urlString, JSONObject parameters) {
+    protected HttpURLConnection setupConnection(String method, String urlString, JSONObject parameters) {
         try {
             String appender = urlString.contains("?") ? "&" : "?";
             String parameterString = JSONToQueryString(parameters);
@@ -199,7 +216,7 @@ public class Lightning {
         }
     }
 
-    protected static InputStream getInputStream(HttpURLConnection connection) {
+    protected InputStream getInputStream(HttpURLConnection connection) {
         try {
             InputStream inputStream = connection.getInputStream();
             connection.connect();
@@ -213,7 +230,7 @@ public class Lightning {
         }
     }
 
-    protected static String getContentString(String method, String urlString, JSONObject parameters) {
+    protected String getContentString(String method, String urlString, JSONObject parameters) {
         HttpURLConnection connection = setupConnection(method, urlString, parameters);
         if (connection == null) {
             return null;
@@ -239,7 +256,7 @@ public class Lightning {
         }
     }
 
-    protected static byte[] getContentBytes(String method, String urlString, JSONObject parameters, String requiredContentTypePrefix) {
+    protected byte[] getContentBytes(String method, String urlString, JSONObject parameters, String requiredContentTypePrefix) {
         HttpURLConnection connection = setupConnection(method, urlString, parameters);
         if (connection == null) {
             return null;
@@ -270,7 +287,7 @@ public class Lightning {
         }
     }
 
-    protected static JSONObject sendAndReturnObject(String method, String urlString, JSONObject parameters) {
+    protected JSONObject sendAndReturnObject(String method, String urlString, JSONObject parameters) {
         String content = getContentString(method, urlString, parameters);
         try {
             JSONObject response = new JSONObject(content);
@@ -282,7 +299,7 @@ public class Lightning {
         return null;
     }
 
-    protected static JSONArray sendAndReturnArray(String method, String urlString, JSONObject parameters) {
+    protected JSONArray sendAndReturnArray(String method, String urlString, JSONObject parameters) {
         // TODO: If there is an error, it will come back as an object.
         String content = getContentString(method, urlString, parameters);
         try {
@@ -299,7 +316,7 @@ public class Lightning {
         }
     }
 
-    protected static byte[] sendAndReturnImage(String method, String urlString, JSONObject parameters) {
+    protected byte[] sendAndReturnImage(String method, String urlString, JSONObject parameters) {
         byte[] data = getContentBytes(method, urlString, parameters, "image/");
         // If this is json, it could be an error.
         if (data != null && data[0] == '{') {
@@ -316,27 +333,27 @@ public class Lightning {
         return data;
     }
 
-    public static JSONObject GET(String url, JSONObject parameters) {
+    public JSONObject GET(String url, JSONObject parameters) {
         return sendAndReturnObject("GET", url, parameters);
     }
 
-    public static JSONObject GET(String url) {
+    public JSONObject GET(String url) {
         return sendAndReturnObject("GET", url, new JSONObject());
     }
 
-    public static JSONObject POST(String url, JSONObject parameters) {
+    public JSONObject POST(String url, JSONObject parameters) {
         return sendAndReturnObject("POST", url, parameters);
     }
 
-    public static JSONObject POST(String url) {
+    public JSONObject POST(String url) {
         return sendAndReturnObject("POST", url, new JSONObject());
     }
 
-    public static JSONArray GETArray(String url, JSONObject parameters) {
+    public JSONArray GETArray(String url, JSONObject parameters) {
         return sendAndReturnArray("GET", url, parameters);
     }
 
-    public static byte[] GETImage(String url, JSONObject parameters) {
+    public byte[] GETImage(String url, JSONObject parameters) {
         return sendAndReturnImage("GET", url, parameters);
     }
 }

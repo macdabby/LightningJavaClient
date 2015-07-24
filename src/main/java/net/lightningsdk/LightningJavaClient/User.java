@@ -48,7 +48,7 @@ public class User {
             parameters.put("password", password);
 
             // Log in with the client.
-            JSONObject response = Lightning.POST("/api/user", parameters);
+            JSONObject response = Lightning.getInstance().POST("/api/user", parameters);
             this.data = new JSONObject();
 
             // Check the status.
@@ -80,7 +80,7 @@ public class User {
             parameters.put("action", "register");
             parameters.put("email", email);
             parameters.put("password", password);
-            JSONObject response = Lightning.POST("/api/user", parameters);
+            JSONObject response = Lightning.getInstance().POST("/api/user", parameters);
             this.data = new JSONObject();
 
             // Check the status.
@@ -102,7 +102,7 @@ public class User {
                 JSONObject cookies = response.getJSONObject("cookies");
                 if (cookies != null) {
                     String sessionKey = cookies.getString("session");
-                    Lightning.setSessionKey(sessionKey);
+                    Lightning.getInstance().setSessionKey(sessionKey);
                 }
             } catch (Exception e) {}
         }
@@ -112,7 +112,7 @@ public class User {
         JSONObject parameters = new JSONObject();
         try {
             parameters.put("action", "logout");
-            Lightning.POST("/api/user", parameters);
+            Lightning.getInstance().POST("/api/user", parameters);
         } catch (Exception e){}
     }
 
