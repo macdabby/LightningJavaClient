@@ -17,6 +17,9 @@ import java.util.Iterator;
 import java.util.zip.GZIPInputStream;
 
 public class Lightning {
+
+    public static final boolean DEBUG = false;
+
     static URL baseURL;
     static String sessionKey;
     static Boolean debug;
@@ -164,8 +167,10 @@ public class Lightning {
             URL fullUrl;
             if (method.equals("POST")) {
                 fullUrl = new URL(baseURL, urlString);
+                AppLog.d(fullUrl.toURI().toString() + " " + parameters.toString());
             } else {
                 fullUrl = new URL(baseURL, urlString + appender + parameterString);
+                AppLog.d(fullUrl.toURI().toString());
             }
             HttpURLConnection connection = (HttpURLConnection) fullUrl.openConnection();
 
@@ -221,6 +226,8 @@ public class Lightning {
 
             String output = IOUtils.toString(inputStream, "UTF-8");
 
+            AppLog.d("output = " + output);
+
             inputStream.close();
             connection.disconnect();
 
@@ -249,6 +256,8 @@ public class Lightning {
             }
 
             byte[] bytes = IOUtils.toByteArray(inputStream);
+
+            AppLog.d("output bytes length = " + bytes.length);
 
             inputStream.close();
             connection.disconnect();
