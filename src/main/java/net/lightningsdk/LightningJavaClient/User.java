@@ -48,17 +48,7 @@ public class User {
             parameters.put("password", password);
 
             // Log in with the client.
-            JSONObject response = Lightning.getInstance().POST("/api/user", parameters, new Lightning.OnQueryResultListener() {
-                @Override
-                public void onError(String title, String message) {
-                    AppLog.d(message);
-                }
-
-                @Override
-                public void onSuccess(String title, String message) {
-
-                }
-            });
+            JSONObject response = Lightning.getInstance().POST("/api/user", parameters);
             this.data = new JSONObject();
 
             // Check the status.
@@ -90,17 +80,7 @@ public class User {
             parameters.put("action", "register");
             parameters.put("email", email);
             parameters.put("password", password);
-            JSONObject response = Lightning.getInstance().POST("/api/user", parameters, new Lightning.OnQueryResultListener() {
-                @Override
-                public void onError(String title, String message) {
-                    AppLog.d(message);
-                }
-
-                @Override
-                public void onSuccess(String title, String message) {
-
-                }
-            });
+            JSONObject response = Lightning.getInstance().POST("/api/user", parameters);
             this.data = new JSONObject();
 
             // Check the status.
@@ -132,17 +112,7 @@ public class User {
         JSONObject parameters = new JSONObject();
         try {
             parameters.put("action", "logout");
-            Lightning.getInstance().POST("/api/user", parameters, new Lightning.OnQueryResultListener() {
-                @Override
-                public void onError(String title, String message) {
-                    AppLog.d(message);
-                }
-
-                @Override
-                public void onSuccess(String title, String message) {
-
-                }
-            });
+            Lightning.getInstance().POST("/api/user", parameters);
         } catch (Exception e){}
     }
 

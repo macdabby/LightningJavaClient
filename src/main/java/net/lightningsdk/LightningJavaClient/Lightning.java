@@ -87,13 +87,15 @@ public class Lightning {
         try {
             if (response.has("errors")) {
                 JSONArray errors = response.getJSONArray("errors");
-                if (errors != null && errors.length() > 0 && onQueryResultListener != null) {
+                if (errors != null && errors.length() > 0) {
                     // TODO: combine errors.
-                    onQueryResultListener.onError("Error", errors.getString(0));
+                    if (onQueryResultListener != null) onQueryResultListener.onError("Error", errors.getString(0));
+                    else AppLog.e(errors.getString(0));
                 }
             }
         } catch (Exception e) {
-            if (onQueryResultListener != null) onQueryResultListener.onError("Error", "There was an error connecting to the server.");
+            if (onQueryResultListener != null) onQueryResultListener.onError("Error", "There was an error connecting to the server");
+            else AppLog.e("There was an error connecting to the server");
         }
     }
 
@@ -269,7 +271,8 @@ public class Lightning {
             response = new JSONObject(content);
             handleJSONError(response, onQueryResultListener);
         } catch (Exception e) {
-            if (onQueryResultListener != null) onQueryResultListener.onError("Error", "There was an error connecting to the server.");
+            if (onQueryResultListener != null) onQueryResultListener.onError("Error", "There was an error connecting to the server");
+            else AppLog.e("There was an error connecting to the server");
             response = null;
         }
         return response;
@@ -288,7 +291,8 @@ public class Lightning {
                 handleJSONError(response, onQueryResultListener);
             } catch (Exception e2) {
                 e2.printStackTrace();
-                if (onQueryResultListener != null) onQueryResultListener.onError("Error","There was an error connecting to the server.");
+                if (onQueryResultListener != null) onQueryResultListener.onError("Error","There was an error connecting to the server");
+                else AppLog.e("There was an error connecting to the server");
             }
             result = null;
         }
@@ -306,29 +310,54 @@ public class Lightning {
                 // This could handle under normal circumstances.
                 e.printStackTrace();
                 if (onQueryResultListener != null) onQueryResultListener.onError("Error", "Error");
+                else AppLog.e("Error");
             }
         }
         return data;
+    }
+
+    public JSONObject GET(String url, JSONObject parameters) {
+        return sendAndReturnObject("GET", url, parameters, null);
     }
 
     public JSONObject GET(String url, JSONObject parameters, OnQueryResultListener onQueryResultListener) {
         return sendAndReturnObject("GET", url, parameters, onQueryResultListener);
     }
 
+    public JSONObject GET(String url) {
+        return sendAndReturnObject("GET", url, new JSONObject(), null);
+    }
+
     public JSONObject GET(String url, OnQueryResultListener onQueryResultListener) {
         return sendAndReturnObject("GET", url, new JSONObject(), onQueryResultListener);
+    }
+
+    public JSONObject POST(String url, JSONObject parameters) {
+        return sendAndReturnObject("POST", url, parameters, null);
     }
 
     public JSONObject POST(String url, JSONObject parameters, OnQueryResultListener onQueryResultListener) {
         return sendAndReturnObject("POST", url, parameters, onQueryResultListener);
     }
 
+    public JSONObject POST(String url) {
+        return sendAndReturnObject("POST", url, new JSONObject(), null);
+    }
+
     public JSONObject POST(String url, OnQueryResultListener onQueryResultListener) {
         return sendAndReturnObject("POST", url, new JSONObject(), onQueryResultListener);
     }
 
+    public JSONArray GETArray(String url, JSONObject parameters) {
+        return sendAndReturnArray("GET", url, parameters, null);
+    }
+
     public JSONArray GETArray(String url, JSONObject parameters, OnQueryResultListener onQueryResultListener) {
         return sendAndReturnArray("GET", url, parameters, onQueryResultListener);
+    }
+
+    public byte[] GETImage(String url, JSONObject parameters) {
+        return sendAndReturnImage("GET", url, parameters, null);
     }
 
     public byte[] GETImage(String url, JSONObject parameters, OnQueryResultListener onQueryResultListener) {
