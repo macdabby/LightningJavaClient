@@ -52,7 +52,7 @@ public class User {
             this.data = new JSONObject();
 
             // Check the status.
-            String status = null;
+            String status;
 
             status = response.getString("status");
             if (status != null && status.equals("success")) {

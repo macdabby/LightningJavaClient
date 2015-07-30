@@ -1,23 +1,14 @@
 package net.lightningsdk.LightningJavaClient;
 
-import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.DialogInterface;
+import android.content.Context;
 import android.content.SharedPreferences;
-import android.util.Log;
-import android.widget.Toast;
 
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
-import java.io.IOException;
 import java.io.InputStream;
-import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
-import java.net.ProtocolException;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.Iterator;
@@ -45,7 +36,7 @@ public class Lightning {
     private URL baseURL;
     private String sessionKey;
     private Boolean debug;
-    private Activity activity;
+    private Context mContext;
 
     private final String PREFERENCES = "net.lightningsdk";
     private final String SESSION_KEY = "sessionKey";
@@ -56,7 +47,7 @@ public class Lightning {
     public void setSessionKey(String newSessionKey) {
         sessionKey = newSessionKey;
 
-        SharedPreferences sharedPref = activity.getSharedPreferences(PREFERENCES, activity.MODE_PRIVATE);
+        SharedPreferences sharedPref = mContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE);
         SharedPreferences.Editor editor = sharedPref.edit();
         editor.putString(SESSION_KEY, sessionKey);
         editor.commit();
@@ -66,13 +57,13 @@ public class Lightning {
         return sessionKey;
     }
 
-    public void configure(Activity a, String setBaseUrl) {
-        configure(a, setBaseUrl, false);
+    public void configure(Context context, String setBaseUrl) {
+        configure(context, setBaseUrl, false);
     }
 
-    public void configure(Activity a, String setBaseUrl, Boolean debug_value) {
+    public void configure(Context context, String setBaseUrl, Boolean debug_value) {
         // Save the activity reference.
-        activity = a;
+        mContext = context.getApplicationContext();
 
         // Enable SNI for SSL connections:
         System.setProperty("jsse.enableSNIExtension", "true");
@@ -88,50 +79,24 @@ public class Lightning {
         debug = debug_value;
 
         // Load the user's session key.
-        SharedPreferences sharedPref = activity.getSharedPreferences(PREFERENCES, activity.MODE_PRIVATE);
+        SharedPreferences sharedPref = mContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE);
         sessionKey = sharedPref.getString(SESSION_KEY, null);
     }
 
-    public void setActivity(Activity a) {
-        activity = a;
-    }
-
-    protected void handleJSONError(JSONObject response) {
+    protected void handleJSONError(JSONObject response, OnQueryResultListener onQueryResultListener) {
         try {
             if (response.has("errors")) {
                 JSONArray errors = response.getJSONArray("errors");
                 if (errors != null && errors.length() > 0) {
                     // TODO: combine errors.
-                    alertError(errors.getString(0));
-                    return;
+                    if (onQueryResultListener != null) onQueryResultListener.onError("Error", errors.getString(0));
+                    else AppLog.e(errors.getString(0));
                 }
             }
         } catch (Exception e) {
-            alertError("There was an error connecting to the server.");
+            if (onQueryResultListener != null) onQueryResultListener.onError("Error", "There was an error connecting to the server");
+            else AppLog.e("There was an error connecting to the server");
         }
-    }
-
-    public void asyncAlert(final String title, final String message) {
-        activity.runOnUiThread(new Runnable() {
-
-            @Override
-            public void run() {
-                AlertDialog alertDialog = new AlertDialog.Builder(activity).create();
-                alertDialog.setTitle(title);
-                alertDialog.setMessage(message);
-                alertDialog.setButton(AlertDialog.BUTTON_NEUTRAL, "OK",
-                        new DialogInterface.OnClickListener() {
-                            public void onClick(DialogInterface dialog, int which) {
-                                dialog.dismiss();
-                            }
-                        });
-                alertDialog.show();
-            }
-        });
-    }
-
-    protected void alertError(String errorMessage) {
-        asyncAlert("Error", errorMessage);
     }
 
     /**
@@ -185,7 +150,7 @@ public class Lightning {
     }
 
     protected HttpURLConnection setupConnection(String method, String urlString, JSONObject parameters) {
-        HttpURLConnection connection = null;
+        HttpURLConnection connection;
         try {
             String appender = urlString.contains("?") ? "&" : "?";
             String parameterString = JSONToQueryString(parameters);
@@ -225,7 +190,7 @@ public class Lightning {
     }
 
     protected InputStream getInputStream(HttpURLConnection connection) {
-        InputStream result = null;
+        InputStream result;
         try {
             InputStream inputStream = connection.getInputStream();
             connection.connect();
@@ -299,76 +264,107 @@ public class Lightning {
         return bytes;
     }
 
-    protected JSONObject sendAndReturnObject(String method, String urlString, JSONObject parameters) {
+    protected JSONObject sendAndReturnObject(String method, String urlString, JSONObject parameters, OnQueryResultListener onQueryResultListener) {
         String content = getContentString(method, urlString, parameters);
-        JSONObject response = null;
+        JSONObject response;
         try {
             response = new JSONObject(content);
-            handleJSONError(response);
+            handleJSONError(response, onQueryResultListener);
         } catch (Exception e) {
-            alertError("There was an error connecting to the server.");
+            if (onQueryResultListener != null) onQueryResultListener.onError("Error", "There was an error connecting to the server");
+            else AppLog.e("There was an error connecting to the server");
             response = null;
         }
         return response;
     }
 
-    protected JSONArray sendAndReturnArray(String method, String urlString, JSONObject parameters) {
+    protected JSONArray sendAndReturnArray(String method, String urlString, JSONObject parameters, OnQueryResultListener onQueryResultListener) {
         // TODO: If there is an error, it will come back as an object.
         String content = getContentString(method, urlString, parameters);
-        JSONArray result = null;
+        JSONArray result;
         try {
             result = new JSONArray(content);
         } catch (Exception e) {
             try {
                 // It's possible the error came back as an object.
                 JSONObject response = new JSONObject(content);
-                handleJSONError(response);
+                handleJSONError(response, onQueryResultListener);
             } catch (Exception e2) {
-                alertError("There was an error connecting to the server.");
+                e2.printStackTrace();
+                if (onQueryResultListener != null) onQueryResultListener.onError("Error","There was an error connecting to the server");
+                else AppLog.e("There was an error connecting to the server");
             }
             result = null;
         }
         return result;
     }
 
-    protected byte[] sendAndReturnImage(String method, String urlString, JSONObject parameters) {
+    protected byte[] sendAndReturnImage(String method, String urlString, JSONObject parameters, OnQueryResultListener onQueryResultListener) {
         byte[] data = getContentBytes(method, urlString, parameters, "image/");
         // If this is json, it could be an error.
         if (data != null && data[0] == '{') {
             try {
                 JSONObject response = new JSONObject(data.toString());
-                if (response != null) {
-                    handleJSONError(response);
-                }
+                handleJSONError(response, onQueryResultListener);
             } catch (Exception e) {
                 // This could handle under normal circumstances.
                 e.printStackTrace();
+                if (onQueryResultListener != null) onQueryResultListener.onError("Error", "Error");
+                else AppLog.e("Error");
             }
         }
         return data;
     }
 
     public JSONObject GET(String url, JSONObject parameters) {
-        return sendAndReturnObject("GET", url, parameters);
+        return sendAndReturnObject("GET", url, parameters, null);
+    }
+
+    public JSONObject GET(String url, JSONObject parameters, OnQueryResultListener onQueryResultListener) {
+        return sendAndReturnObject("GET", url, parameters, onQueryResultListener);
     }
 
     public JSONObject GET(String url) {
-        return sendAndReturnObject("GET", url, new JSONObject());
+        return sendAndReturnObject("GET", url, new JSONObject(), null);
+    }
+
+    public JSONObject GET(String url, OnQueryResultListener onQueryResultListener) {
+        return sendAndReturnObject("GET", url, new JSONObject(), onQueryResultListener);
     }
 
     public JSONObject POST(String url, JSONObject parameters) {
-        return sendAndReturnObject("POST", url, parameters);
+        return sendAndReturnObject("POST", url, parameters, null);
+    }
+
+    public JSONObject POST(String url, JSONObject parameters, OnQueryResultListener onQueryResultListener) {
+        return sendAndReturnObject("POST", url, parameters, onQueryResultListener);
     }
 
     public JSONObject POST(String url) {
-        return sendAndReturnObject("POST", url, new JSONObject());
+        return sendAndReturnObject("POST", url, new JSONObject(), null);
+    }
+
+    public JSONObject POST(String url, OnQueryResultListener onQueryResultListener) {
+        return sendAndReturnObject("POST", url, new JSONObject(), onQueryResultListener);
     }
 
     public JSONArray GETArray(String url, JSONObject parameters) {
-        return sendAndReturnArray("GET", url, parameters);
+        return sendAndReturnArray("GET", url, parameters, null);
+    }
+
+    public JSONArray GETArray(String url, JSONObject parameters, OnQueryResultListener onQueryResultListener) {
+        return sendAndReturnArray("GET", url, parameters, onQueryResultListener);
     }
 
     public byte[] GETImage(String url, JSONObject parameters) {
-        return sendAndReturnImage("GET", url, parameters);
+        return sendAndReturnImage("GET", url, parameters, null);
+    }
+
+    public byte[] GETImage(String url, JSONObject parameters, OnQueryResultListener onQueryResultListener) {
+        return sendAndReturnImage("GET", url, parameters, onQueryResultListener);
+    }
+
+    public interface OnQueryResultListener{
+        void onError(final String title, final String message);
     }
 }
