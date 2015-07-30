@@ -366,6 +366,5 @@ public class Lightning {
 
     public interface OnQueryResultListener{
         void onError(final String title, final String message);
-        void onSuccess(final String title, final String message);
     }
 }
