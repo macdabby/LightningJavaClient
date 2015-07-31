@@ -3,6 +3,11 @@ package net.lightningsdk.LightningJavaClient;
 import android.util.Log;
 import static net.lightningsdk.LightningJavaClient.Lightning.DEBUG;
 
+/**
+ * !!
+ *
+ * @author Daniel Behrman macdabby@gmail.com
+ */
 public class AppLog {
 
     private static final String TAG = "Lightning";
