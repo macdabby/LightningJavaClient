@@ -14,6 +14,11 @@ import java.net.URLEncoder;
 import java.util.Iterator;
 import java.util.zip.GZIPInputStream;
 
+/**
+ * !!
+ *
+ * @author Daniel Behrman macdabby@gmail.com, Sergey Mitrofanov goretz.m@gmail.com
+ */
 public class Lightning {
 
     private static volatile Lightning instance;

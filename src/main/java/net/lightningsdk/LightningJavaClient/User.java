@@ -6,6 +6,11 @@ import org.json.JSONObject;
 import java.security.spec.ECField;
 import java.util.HashMap;
 
+/**
+ * !!
+ *
+ * @author Daniel Behrman macdabby@gmail.com, Sergey Mitrofanov goretz.m@gmail.com
+ */
 public class User {
     protected JSONObject data;
 
