@@ -3,16 +3,29 @@ package net.lightningsdk.LightningJavaClient;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import com.google.gson.Gson;
+
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.InputStream;
+import java.io.Serializable;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
+import java.util.HashMap;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.zip.GZIPInputStream;
+
+import retrofit.Callback;
+import retrofit.RequestInterceptor;
+import retrofit.RestAdapter;
+import retrofit.RetrofitError;
+import retrofit.client.Response;
 
 /**
  * !!
@@ -22,6 +35,10 @@ import java.util.zip.GZIPInputStream;
 public class Lightning {
 
     private static volatile Lightning instance;
+
+    /*private Lightning(){
+
+    };
 
     public static Lightning getInstance() {
         Lightning localInstance = instance;
@@ -34,7 +51,7 @@ public class Lightning {
             }
         }
         return localInstance;
-    }
+    }*/
 
     public static final boolean DEBUG = false;
 
@@ -108,7 +125,7 @@ public class Lightning {
      * Convert a complex JSON object into a query string.
      */
     public String JSONToQueryString(JSONObject parameters) {
-        String res = null;
+        String res;
         try {
             StringBuilder sb = new StringBuilder();
             SubJSONToQueryString(sb, "", parameters, true);
@@ -147,7 +164,7 @@ public class Lightning {
                 if(sb.length() > 0){
                     sb.append('&');
                 }
-                sb.append(URLEncoder.encode(prefix, "UTF-8") + "=" + URLEncoder.encode(value.toString(), "UTF-8"));
+                sb.append(URLEncoder.encode(prefix, "UTF-8")).append("=").append(URLEncoder.encode(value.toString(), "UTF-8"));
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -240,7 +257,7 @@ public class Lightning {
 
     protected byte[] getContentBytes(String method, String urlString, JSONObject parameters, String requiredContentTypePrefix) {
         HttpURLConnection connection = setupConnection(method, urlString, parameters);
-        byte[] bytes = null;
+        byte[] bytes;
         if (connection == null) {
             return null;
         }
@@ -371,5 +388,186 @@ public class Lightning {
 
     public interface OnQueryResultListener{
         void onError(final String title, final String message);
+    }
+
+    private LightningMethods mMethods;
+    private Lightning(String baseUrl){//Context context){
+        //mContext = context.getApplicationContext();
+        RestAdapter restAdapter = new RestAdapter.Builder()
+                .setEndpoint(baseUrl)//mContext.getString(R.string.base_url))
+                .setLogLevel(RestAdapter.LogLevel.BASIC)
+                .setRequestInterceptor(requestInterceptor)
+                .build();
+        mMethods = restAdapter.create(LightningMethods.class);
+    }
+
+    public static Lightning getInstance(String baseUrl) {
+        Lightning localInstance = instance;
+        if (localInstance == null) {
+            synchronized (Lightning.class) {
+                localInstance = instance;
+                if (localInstance == null) {
+                    instance = localInstance = new Lightning(baseUrl);
+                }
+            }
+        }
+        return localInstance;
+    }
+
+    public static Lightning getInstance() {
+        return instance;
+    }
+
+    RequestInterceptor requestInterceptor = new RequestInterceptor() {
+        @Override
+        public void intercept(RequestFacade request) {
+            request.addHeader("Cookie", "session=" + sessionKey);
+        }
+    };
+
+    public LightningMethods getMethods() {
+        return mMethods;
+    }
+
+    public Builder prepareRequest(String apiMethod){
+        return new Builder()
+                .putPath(apiMethod);
+    }
+
+    public class Builder implements Serializable {
+        Map<String, String> params;
+        String path;
+
+        public Builder() {
+            params = new HashMap<>();
+        }
+
+        public Builder putPath(String path){
+            this.path = path;
+            return this;
+        }
+
+        public Builder putParam(String paramName, String paramValue){
+            params.put(paramName, paramValue);
+            return this;
+        }
+        public Builder putParam(String paramName, int paramValue){
+            params.put(paramName, String.valueOf(paramValue));
+            return this;
+        }
+        public Builder putAll(Map<String, String> params){
+            this.params.putAll(params);
+            return this;
+        }
+        public void getString(final LightningListener<String> listener)
+        {
+            instance.getMethods().get(path, params, new Callback<Response>() {
+                @Override
+                public void success(Response response, Response response2) {
+                    listener.loadComplete(StreamToString.getString(response));
+                }
+
+                @Override
+                public void failure(RetrofitError retrofitError) {
+                    listener.loadError(retrofitError.getMessage());
+                }
+            });
+        }
+
+        public <T> void get(final LightningListener<T> listener){
+            Type type = listener.getClass().getGenericInterfaces()[0];
+            final Class cls = (Class) ((ParameterizedType) type).getActualTypeArguments()[0];
+            instance.getMethods().get(path, params, new Callback<Response>() {
+                @Override
+                public void success(Response response, Response response2) {
+                    Gson gson = new Gson();
+                    String json = StreamToString.getString(response);
+                    try {
+                        Object t = gson.fromJson(json, cls);
+                        listener.loadComplete((T) t);
+                    } catch (final Exception ex) {
+                        ex.printStackTrace();
+                        listener.loadError(ex.getMessage());
+                    }
+                }
+
+                @Override
+                public void failure(RetrofitError retrofitError) {
+                    listener.networkError(retrofitError.getMessage());
+                }
+            });
+        }
+
+        public  void get(final JsonResult listener){
+            instance.getMethods().get(path, params, new Callback<Response>() {
+                @Override
+                public void success(Response response, Response response2) {
+                    String json = StreamToString.getString(response);
+                    listener.loadComplete(json);
+                }
+
+                @Override
+                public void failure(RetrofitError retrofitError) {
+                    listener.loadError(retrofitError.getMessage());
+                }
+            });
+        }
+
+        public  void post(final JsonResult listener){
+            instance.getMethods().post(path, params, new Callback<Response>() {
+                @Override
+                public void success(Response response, Response response2) {
+                    String json = StreamToString.getString(response);
+                    listener.loadComplete(json);
+                }
+
+                @Override
+                public void failure(RetrofitError retrofitError) {
+                    listener.loadError(retrofitError.getMessage());
+                }
+            });
+        }
+
+        /*public void get(final ErrorListener errorListener){
+            getInstance().getMethods().get(path, params, new Callback<Response>() {
+                @Override
+                public void success(Response response, Response response2) {
+                    errorListener.loadComplete();
+                }
+
+                @Override
+                public void failure(RetrofitError retrofitError) {
+                    errorListener.loadError(retrofitError.getMessage());
+                }
+            });
+        }
+
+        public void get(){
+            getInstance().getMethods().get(path, params, new Callback<Response>() {
+                @Override
+                public void success(Response response, Response response2) {
+                }
+
+                @Override
+                public void failure(RetrofitError retrofitError) {
+                }
+            });
+        }*/
+    }
+
+    public interface LightningListener<T> extends Serializable{
+        void loadComplete(T t);
+        void loadError(String message);
+        void networkError(String message);
+    }
+
+    /*public interface ErrorListener{
+        void loadComplete();
+        void loadError(String message);
+    }*/
+
+    public interface JsonResult{
+        void loadComplete(String json);
+        void loadError(String message);
     }
 }
