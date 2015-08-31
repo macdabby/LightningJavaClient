@@ -12,7 +12,7 @@ import java.util.HashMap;
  * @author Daniel Behrman macdabby@gmail.com, Sergey Mitrofanov goretz.m@gmail.com
  */
 public class User {
-    protected JSONObject data;
+    /*protected JSONObject data;
 
     public User() {
         this.load();
@@ -24,7 +24,7 @@ public class User {
      * @param email
      * @param password
      * @return
-     */
+     *
     public static User logIn (String email, String password) {
         User user = new User();
         if (user.isLoggedIn()) {
@@ -43,7 +43,7 @@ public class User {
      * @param email
      * @param password
      * @return
-     */
+     *
     protected Boolean _logIn  (String email, String password) {
         Boolean success = false;
         try {
@@ -138,4 +138,4 @@ public class User {
 //        [defaults setObject:self.data forKey:@"Lightning.User"];
 //        [defaults synchronize];
     }
-}
+*/}
