@@ -36,7 +36,7 @@ public class Lightning {
         return localInstance;
     }
 
-    public static final boolean DEBUG = true;
+    public static final boolean DEBUG = false;
 
     private URL baseURL;
     private String sessionKey;
