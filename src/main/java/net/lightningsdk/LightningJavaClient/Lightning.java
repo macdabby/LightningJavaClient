@@ -36,7 +36,7 @@ public class Lightning {
         return localInstance;
     }
 
-    public static final boolean DEBUG = false;
+    public static final boolean DEBUG = true;
 
     private URL baseURL;
     private String sessionKey;
@@ -194,6 +194,40 @@ public class Lightning {
         return connection;
     }
 
+    protected HttpURLConnection setupConnection(String method, String urlString, String body) {
+        HttpURLConnection connection;
+        try {
+            URL fullUrl;
+            fullUrl = new URL(baseURL, urlString);
+            AppLog.d(fullUrl.toURI().toString() + ", body = " + body);
+            connection = (HttpURLConnection) fullUrl.openConnection();
+
+            connection.setUseCaches(false);
+            connection.setDoOutput(true);
+            connection.setAllowUserInteraction(false);
+
+            // Set the request method.
+            connection.setRequestMethod(method);
+
+            // Add the session cookie.
+            connection.setRequestProperty("Cookie", "session=" + sessionKey);
+            if (!debug) {
+                connection.setRequestProperty("Accept-Encoding", "gzip, deflate");
+            }
+
+            if (method.equals("POST") && body.length() > 0) {
+                connection.setRequestProperty("Content-Length", Integer.toString(body.length()));
+                connection.addRequestProperty("Content-Type", "application/json");
+                connection.setRequestProperty("charset", "utf-8");
+                connection.getOutputStream().write(body.getBytes("UTF8"));
+            }
+        } catch (Exception e) {
+            connection = null;
+            e.printStackTrace();
+        }
+        return connection;
+    }
+
     protected InputStream getInputStream(HttpURLConnection connection) {
         InputStream result;
         try {
@@ -213,6 +247,33 @@ public class Lightning {
 
     protected String getContentString(String method, String urlString, JSONObject parameters) {
         HttpURLConnection connection = setupConnection(method, urlString, parameters);
+        String output;
+        if (connection == null) {
+            return null;
+        }
+        try {
+            InputStream inputStream = getInputStream(connection);
+            if (inputStream == null) {
+                return null;
+            }
+
+            output = IOUtils.toString(inputStream, "UTF-8");
+
+            AppLog.d("output = " + output);
+
+            inputStream.close();
+            connection.disconnect();
+
+        } catch (Exception e) {
+            // Nothing loaded.
+            e.printStackTrace();
+            output = null;
+        }
+        return output;
+    }
+
+    protected String getContentString(String method, String urlString, String body) {
+        HttpURLConnection connection = setupConnection(method, urlString, body);
         String output;
         if (connection == null) {
             return null;
@@ -271,6 +332,20 @@ public class Lightning {
 
     protected JSONObject sendAndReturnObject(String method, String urlString, JSONObject parameters, OnQueryResultListener onQueryResultListener) {
         String content = getContentString(method, urlString, parameters);
+        JSONObject response;
+        try {
+            response = new JSONObject(content);
+            handleJSONError(response, onQueryResultListener);
+        } catch (Exception e) {
+            if (onQueryResultListener != null) onQueryResultListener.onError("Error", "There was an error connecting to the server");
+            else AppLog.e("There was an error connecting to the server");
+            response = null;
+        }
+        return response;
+    }
+
+    protected JSONObject sendAndReturnObject(String method, String urlString, String body, OnQueryResultListener onQueryResultListener) {
+        String content = getContentString(method, urlString, body);
         JSONObject response;
         try {
             response = new JSONObject(content);
@@ -351,6 +426,10 @@ public class Lightning {
 
     public JSONObject POST(String url, OnQueryResultListener onQueryResultListener) {
         return sendAndReturnObject("POST", url, new JSONObject(), onQueryResultListener);
+    }
+
+    public JSONObject POST(String url, String body) {
+        return sendAndReturnObject("POST", url, body, null);
     }
 
     public JSONArray GETArray(String url, JSONObject parameters) {
