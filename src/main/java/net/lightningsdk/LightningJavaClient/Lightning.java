@@ -2,6 +2,7 @@ package net.lightningsdk.LightningJavaClient;
 
 import android.content.Context;
 import android.content.SharedPreferences;
+import android.content.pm.PackageManager;
 
 import org.apache.commons.io.IOUtils;
 import org.json.JSONArray;
@@ -157,13 +158,18 @@ public class Lightning {
     protected HttpURLConnection setupConnection(String method, String urlString, JSONObject parameters) {
         HttpURLConnection connection;
         try {
-            String appender = urlString.contains("?") ? "&" : "?";
-            String parameterString = JSONToQueryString(parameters);
+            String parameterString;
+            if (method.equals("POSTJSON")) {
+                parameterString = parameters.toString();
+            } else {
+                parameterString = JSONToQueryString(parameters);
+            }
             URL fullUrl;
-            if (method.equals("POST")) {
+            if (method.equals("POST") || method.equals("POSTJSON")) {
                 fullUrl = new URL(baseURL, urlString);
                 AppLog.d(fullUrl.toURI().toString() + " " + parameters.toString());
             } else {
+                String appender = urlString.contains("?") ? "&" : "?";
                 fullUrl = new URL(baseURL, urlString + appender + parameterString);
                 AppLog.d(fullUrl.toURI().toString());
             }
@@ -173,7 +179,7 @@ public class Lightning {
             connection.setAllowUserInteraction(false);
 
             // Set the request method.
-            connection.setRequestMethod(method);
+            connection.setRequestMethod(method.equals("POSTJSON") ? "POST" : method);
 
             // Add the session cookie.
             connection.setRequestProperty("Cookie", "session=" + sessionKey);
@@ -181,9 +187,12 @@ public class Lightning {
                 connection.setRequestProperty("Accept-Encoding", "gzip, deflate");
             }
 
-            if (method.equals("POST") && parameterString.length() > 0) {
+            // Add the User Agent.
+            connection.setRequestProperty("User-Agent", getUserAgent());
+
+            if ((method.equals("POST") || method.equals("POSTJSON")) && parameterString.length() > 0) {
                 connection.setRequestProperty("Content-Length", Integer.toString(parameterString.length()));
-                connection.addRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+                connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
                 connection.setRequestProperty("charset", "utf-8");
                 connection.getOutputStream().write(parameterString.getBytes("UTF8"));
             }
@@ -192,6 +201,22 @@ public class Lightning {
             e.printStackTrace();
         }
         return connection;
+    }
+
+    public String getAppVersionName() {
+        String versionName = "";
+        try {
+            versionName = mContext.getPackageManager().getPackageInfo(mContext.getPackageName(), 0).versionName;
+        } catch (PackageManager.NameNotFoundException e) {
+            e.printStackTrace();
+        }
+        return versionName;
+    }
+
+    public String getUserAgent() {
+        return "MindPT/" + getAppVersionName()
+                + "(Android) Android/" + android.os.Build.VERSION.RELEASE + " " + android.os.Build.MODEL
+                + "";
     }
 
     protected HttpURLConnection setupConnection(String method, String urlString, String body) {
@@ -422,6 +447,10 @@ public class Lightning {
 
     public JSONObject POST(String url) {
         return sendAndReturnObject("POST", url, new JSONObject(), null);
+    }
+
+    public JSONObject POSTJSON(String url, JSONObject parameters) {
+        return sendAndReturnObject("POSTJSON", url, parameters, null);
     }
 
     public JSONObject POST(String url, OnQueryResultListener onQueryResultListener) {
